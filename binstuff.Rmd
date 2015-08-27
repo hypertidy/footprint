@@ -9,7 +9,7 @@ output: html_document
 Bin point data at very high resolution, storing a sparse grid. These tools use spatstat and raster packages. 
 
 ```{r}
-library(binny)  ## a better name would be good
+library(footprint)  
 library(raster)
 llproj <- "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0"
 proj <- "+proj=laea +lat_0=-90 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0"
@@ -23,4 +23,6 @@ print(g)  ## don't ever populate the data of this object :)
 
 n <- 1e4
 pts <- cbind(runif(n, xmin(g), xmax(g)), runif(n, ymin(g), ymax(g)))
-sq
+
+## etc. etc. 
+```
