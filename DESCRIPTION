@@ -1,9 +1,10 @@
 Package: footprint
 Type: Package
-Title: What the Package Does (Title Case)
+Title: High Resolution Binning for Point or Segment Data
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: Who to complain to <yourfault@somewhere.net>
-Description: More about what it does (maybe more than one line)
+Authors@R: c(person("Michael D.","Sumner", role = c("aut", "cre"), email = "michael.sumner@aad.gov.au"))
+Description: Bin point or line segment data at extremely high resolution. 
 License: What license is it under?
 LazyData: TRUE
+Imports: spatstat, raster
+Suggests: dplyr

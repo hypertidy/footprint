@@ -11,6 +11,8 @@ Bin point data at very high resolution, storing a sparse grid. These tools use s
 ```{r}
 library(footprint)  
 library(raster)
+library(spatstat)
+library(dplyr)
 llproj <- "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0"
 proj <- "+proj=laea +lat_0=-90 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0"
 
@@ -19,10 +21,47 @@ ex <- extent(projectExtent(raster(extent(100, 120, -60, -50), nrow = 100, ncol =
 
 ## parent grid (sparse massive grid with 15m pixels)
 g <- buildparent(ex, 15)
+
 print(g)  ## don't ever populate the data of this object :)
 
 n <- 1e4
-pts <- cbind(runif(n, xmin(g), xmax(g)), runif(n, ymin(g), ymax(g)))
+pts0 <- cbind(runif(n, xmin(g) + 3000 , xmax(g) - 3000), runif(n,ymin(g) + 3000, ymax(g) - 3000))
+pts1 <- cbind(rnorm(n, pts0[,1], 500), rnorm(n, pts0[,2], 1500))
 
-## etc. etc. 
+psegs <- function(x1, x2, add = FALSE) {
+  if (!add) plot(rbind(x1, x2), type = "n")
+  segments(x1[,1], x1[,2], x2[,1], x2[,2])
+}
+psegs(pts0, pts1)
+
+diam <- rep(30, nrow(pts0))  ## diameter for density (can be per row )
+
+Kcell <- vector("list", nrow(pts1))
+kde <- FALSE
+for (i in seq(nrow(pts1))) {
+  linp <- bpsp(pts0[i,], pts1[i,], g, diam[i]/2)
+  if (kde) {
+   pix <- density(linp, sigma = diam[i])
+  } else {
+   pix <- pixellate(linp)
+  }
+  rd <- raster(pix)
+  rd[rd < quantile(rd, 0.75)] <- NA_real_
+  
+  vals <- values(rd)
+  Kcell[[i]] <- data_frame(cell = cellFromXY(g, coordinates(rd)[!is.na(vals), ]), 
+        prob = na.omit(vals))  
+if (i %% 50 == 0) print(i)
+}
+
+## summarize with dplyr
+cell <- do.call(bind_rows, Kcell)
+ss <- cell %>% group_by(cell) %>% summarize(prob = sum(prob))
+rsum <- setValues(raster(extent(g), res = 50000, crs = projection(g)), 0)
+ss$foreign <- cellFromXY(rsum, xyFromCell(g, ss$cell))
+xsum <- ss %>% group_by(foreign) %>% summarize(prob = sum(prob)) %>% filter(!is.na(foreign))
+rsum[xsum$foreign] <- xsum$prob
+
+plot(rsum)
+psegs(pts0, pts1, add = TRUE)
 ```
