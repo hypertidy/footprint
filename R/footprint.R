@@ -85,7 +85,7 @@ bpsp <- function(x1, x2, pare, diam = 0) {
 
   r <- crop(pare, ext + diam * 2, snap = "out")
   r[] <- 1L
-  msk <- as.matrix(r)
+  #msk <- as.matrix(r)
   msk <- matrix(TRUE, nrow(r), ncol(r))
   w <- owin(c(xmin(r), xmax(r)), c(ymin(r), ymax(r)), mask = msk)
   psp(x1[1], x1[2], x2[1], x2[2], window = w)
