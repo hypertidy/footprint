@@ -1,10 +1,11 @@
 Package: footprint
 Type: Package
 Title: High Resolution Binning for Point or Segment Data
-Version: 0.1.0
+Version: 0.2.0
 Authors@R: c(person("Michael D.","Sumner", role = c("aut", "cre"), email = "michael.sumner@aad.gov.au"))
 Description: Bin point or line segment data at extremely high resolution. 
-License: What license is it under?
+License: GPL (>= 3)
 LazyData: TRUE
-Imports: spatstat, raster
+Imports: spatstat.geom, terra
 Suggests: dplyr
+RoxygenNote: 7.2.3
