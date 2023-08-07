@@ -1,0 +1,121 @@
+---
+output: github_document
+editor_options: 
+  chunk_output_type: console
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# footprint
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+The goal of footprint bin point data at very high resolution, storing a sparse grid. These tools use spatstat and raster packages. 
+
+It just exists as the code used in abstraction from the work done in 2015. I'd be happy to collab to extend this to ew work. 
+
+## Installation
+
+You can install the development version of footprint from [GitHub](https://github.com/) with:
+
+``` r
+# install.packages("pak")
+pak::pak("hypertidy/footprint")
+```
+
+
+We create a massive raster, an a fair umber of pretty short line segments, then bin those lines and record cell hits
+of the massive raster (we convert from child raster touched by the line segment). The output is 'cell', a pretty massive data frame of `cell,prob`(ability). 
+
+Then, we bin the count of lowest resolution pixels touched by a line into a much lower resolution raster and plot it with the lines. 
+
+It still takes a while, this is like 20min or something so we could parallelize it and perhaps a few other speedups. 
+
+
+
+```{r}
+library(footprint)  
+library(terra)
+library(spatstat.geom)
+library(dplyr)
+llproj <- "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0"
+proj <- "+proj=laea +lat_0=-90 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0"
+
+## very round-a-bout, but works
+ex <- ext(project(rast(ext(100, 120, -60, -50), nrow = 100, ncol = 100, crs = llproj), proj))
+
+## parent grid (sparse massive grid with 15m pixels)
+g <- buildparent(ex, 15)
+
+print(g)  ## don't ever populate the data of this object :)
+
+n <- 1e4
+pts0 <- cbind(runif(n, xmin(g) + 3000 , xmax(g) - 3000), runif(n,ymin(g) + 3000, ymax(g) - 3000))
+pts1 <- cbind(rnorm(n, pts0[,1], 500), rnorm(n, pts0[,2], 1500))
+
+psegs <- function(x1, x2, add = FALSE) {
+  if (!add) plot(rbind(x1, x2), type = "n")
+  segments(x1[,1], x1[,2], x2[,1], x2[,2])
+}
+psegs(pts0, pts1)
+
+diam <- rep(30, nrow(pts0))  ## diameter for density (can be per row )
+
+Kcell <- vector("list", nrow(pts1))
+kde <- FALSE
+
+## this could be made a lot faster now 2023-08-07
+## --parallelize the loop
+## -- (possibly rasterize with terra, can't do kde)
+## -- probably can rewrite a fair bit anyway
+for (i in seq(nrow(pts1))) {
+  linp <- bpsp(pts0[i,], pts1[i,], g, diam[i]/2)
+  if (kde) {
+   pix <- density(linp, sigma = diam[i])
+  } else {
+   pix <- pixellate(linp)
+  }
+  rd <- rast(pix)
+  rd[rd < quantile(values(rd)[,1], 0.75)] <- NA_real_
+  
+  vals <- values(rd)
+  Kcell[[i]] <- tibble::tibble(cell = cellFromXY(g, xyFromCell(rd, seq_len(ncell(rd)))[!is.na(vals), ]), 
+        prob = na.omit(vals))  
+if (i %% 50 == 0) print(i)
+}
+
+## summarize with dplyr
+cell <- do.call(bind_rows, Kcell)
+
+ss <- cell %>% group_by(cell) %>% summarize(prob = sum(prob))
+
+rsum <- setValues(rast(ext(g), res = 50000, crs = crs(g)), 0)
+ss$foreign <- cellFromXY(rsum, xyFromCell(g, ss$cell))
+xsum <- ss %>% group_by(foreign) %>% summarize(prob = sum(prob)) %>% filter(!is.na(foreign))
+rsum[xsum$foreign] <- xsum$prob
+
+plot(rsum)
+psegs(pts0, pts1, add = TRUE)
+ex2 <- ext(3064556.06339375, 3203002.1878131, -925364.448947992, -816064.877037982)
+plot(ex2, add = TRUE)
+## zoom in
+plot(crop(rsum, ex2))
+psegs(pts0, pts1, add = TRUE)
+
+```
+
+
+## Code of Conduct
+  
+Please note that the footprint project is released with a [Contributor Code of Conduct](https://contributor-covenant.org/version/2/1/CODE_OF_CONDUCT.html). By contributing to this project, you agree to abide by its terms.
+
