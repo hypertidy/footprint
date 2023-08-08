@@ -8,10 +8,10 @@
 <!-- badges: end -->
 
 The goal of footprint bin point data at very high resolution, storing a
-sparse grid. These tools use spatstat and raster packages.
+sparse grid. These tools use spatstat.geom and terra packages.
 
 It just exists as the code used in abstraction from the work done in
-2015. I’d be happy to collab to extend this to ew work.
+2015. I’d be happy to collab to extend this to new work.
 
 ## Installation
 
@@ -23,16 +23,17 @@ You can install the development version of footprint from
 pak::pak("hypertidy/footprint")
 ```
 
-We create a massive raster, an a fair umber of pretty short line
-segments, then bin those lines and record cell hits of the massive
-raster (we convert from child raster touched by the line segment). The
-output is ‘cell’, a pretty massive data frame of `cell,prob`(ability).
+We create a massive raster, a fair number of pretty short line segments,
+then bin those lines and record cell hits of the massive raster (we
+convert from child raster touched by the line segment). The output is
+‘cell’, a pretty massive data frame of `cell,prob`(ability).
 
 Then, we bin the count of lowest resolution pixels touched by a line
 into a much lower resolution raster and plot it with the lines.
 
-It still takes a while, this is like 20min or something so we could
-parallelize it and perhaps a few other speedups.
+It still takes a while, a few minutes parallelized and the summary stage
+takes longer than the rasterizing now, it and perhaps a few other
+speedups are available.
 
 ``` r
 library(footprint)  
