@@ -4,10 +4,14 @@
 # footprint
 
 <!-- badges: start -->
+
 <!-- badges: end -->
 
 The goal of footprint bin point data at very high resolution, storing a
 sparse grid. These tools use spatstat and raster packages.
+
+It just exists as the code used in abstraction from the work done in
+2015. I’d be happy to collab to extend this to ew work.
 
 ## Installation
 
@@ -18,6 +22,17 @@ You can install the development version of footprint from
 # install.packages("pak")
 pak::pak("hypertidy/footprint")
 ```
+
+We create a massive raster, an a fair umber of pretty short line
+segments, then bin those lines and record cell hits of the massive
+raster (we convert from child raster touched by the line segment). The
+output is ‘cell’, a pretty massive data frame of `cell,prob`(ability).
+
+Then, we bin the count of lowest resolution pixels touched by a line
+into a much lower resolution raster and plot it with the lines.
+
+It still takes a while, this is like 20min or something so we could
+parallelize it and perhaps a few other speedups.
 
 ``` r
 library(footprint)  
@@ -80,224 +95,58 @@ Kcell <- vector("list", nrow(pts1))
 kde <- FALSE
 
 ## this could be made a lot faster now 2023-08-07
-for (i in seq(nrow(pts1))) {
-  linp <- bpsp(pts0[i,], pts1[i,], g, diam[i]/2)
+## --parallelize the loop
+## -- (possibly rasterize with terra, can't do kde)
+## -- probably can rewrite a fair bit anyway
+# for (i in seq(nrow(pts1))) {
+#   linp <- bpsp(pts0[i,], pts1[i,], g, diam[i]/2)
+#   if (kde) {
+#    pix <- density(linp, sigma = diam[i])
+#   } else {
+#    pix <- pixellate(linp)
+#   }
+#   rd <- rast(pix)
+#   rd[rd < quantile(values(rd)[,1], 0.75)] <- NA_real_
+#   
+#   vals <- values(rd)
+#   Kcell[[i]] <- tibble::tibble(cell = cellFromXY(g, xyFromCell(rd, seq_len(ncell(rd)))[!is.na(vals), ]), 
+#         prob = na.omit(vals))  
+# if (i %% 50 == 0) print(i)
+# }
+
+## this fuction is the old loop above in parallel, which was much harder to do when it was written
+## this document is run from the shell via Rscript -e 'rmarkdown::render("README.Rmd")' &
+## because, note limitations on future::multicore when run in RStudio
+fun_pti <- function(i) {
+   linp <- bpsp(pts0[i,], pts1[i,], g, diam[i]/2)
   if (kde) {
    pix <- density(linp, sigma = diam[i])
   } else {
    pix <- pixellate(linp)
   }
   rd <- rast(pix)
-  rd[rd < quantile(values(rd)[,1], 0.75)] <- NA_real_
+  ## values() clashes with future::values 
+  rd[rd < quantile(terra::values(rd)[,1], 0.75)] <- NA_real_
   
-  vals <- values(rd)
-  Kcell[[i]] <- tibble::tibble(cell = cellFromXY(g, xyFromCell(rd, seq_len(ncell(rd)))[!is.na(vals), ]), 
-        prob = na.omit(vals))  
-if (i %% 50 == 0) print(i)
+  vals <- terra::values(rd)
+  tibble::tibble(cell = cellFromXY(g, xyFromCell(rd, seq_len(ncell(rd)))[!is.na(vals), ]), 
+        prob = na.omit(vals)) 
 }
-#> [1] 50
-#> [1] 100
-#> [1] 150
-#> [1] 200
-#> [1] 250
-#> [1] 300
-#> [1] 350
-#> [1] 400
-#> [1] 450
-#> [1] 500
-#> [1] 550
-#> [1] 600
-#> [1] 650
-#> [1] 700
-#> [1] 750
-#> [1] 800
-#> [1] 850
-#> [1] 900
-#> [1] 950
-#> [1] 1000
-#> [1] 1050
-#> [1] 1100
-#> [1] 1150
-#> [1] 1200
-#> [1] 1250
-#> [1] 1300
-#> [1] 1350
-#> [1] 1400
-#> [1] 1450
-#> [1] 1500
-#> [1] 1550
-#> [1] 1600
-#> [1] 1650
-#> [1] 1700
-#> [1] 1750
-#> [1] 1800
-#> [1] 1850
-#> [1] 1900
-#> [1] 1950
-#> [1] 2000
-#> [1] 2050
-#> [1] 2100
-#> [1] 2150
-#> [1] 2200
-#> [1] 2250
-#> [1] 2300
-#> [1] 2350
-#> [1] 2400
-#> [1] 2450
-#> [1] 2500
-#> [1] 2550
-#> [1] 2600
-#> [1] 2650
-#> [1] 2700
-#> [1] 2750
-#> [1] 2800
-#> [1] 2850
-#> [1] 2900
-#> [1] 2950
-#> [1] 3000
-#> [1] 3050
-#> [1] 3100
-#> [1] 3150
-#> [1] 3200
-#> [1] 3250
-#> [1] 3300
-#> [1] 3350
-#> [1] 3400
-#> [1] 3450
-#> [1] 3500
-#> [1] 3550
-#> [1] 3600
-#> [1] 3650
-#> [1] 3700
-#> [1] 3750
-#> [1] 3800
-#> [1] 3850
-#> [1] 3900
-#> [1] 3950
-#> [1] 4000
-#> [1] 4050
-#> [1] 4100
-#> [1] 4150
-#> [1] 4200
-#> [1] 4250
-#> [1] 4300
-#> [1] 4350
-#> [1] 4400
-#> [1] 4450
-#> [1] 4500
-#> [1] 4550
-#> [1] 4600
-#> [1] 4650
-#> [1] 4700
-#> [1] 4750
-#> [1] 4800
-#> [1] 4850
-#> [1] 4900
-#> [1] 4950
-#> [1] 5000
-#> [1] 5050
-#> [1] 5100
-#> [1] 5150
-#> [1] 5200
-#> [1] 5250
-#> [1] 5300
-#> [1] 5350
-#> [1] 5400
-#> [1] 5450
-#> [1] 5500
-#> [1] 5550
-#> [1] 5600
-#> [1] 5650
-#> [1] 5700
-#> [1] 5750
-#> [1] 5800
-#> [1] 5850
-#> [1] 5900
-#> [1] 5950
-#> [1] 6000
-#> [1] 6050
-#> [1] 6100
-#> [1] 6150
-#> [1] 6200
-#> [1] 6250
-#> [1] 6300
-#> [1] 6350
-#> [1] 6400
-#> [1] 6450
-#> [1] 6500
-#> [1] 6550
-#> [1] 6600
-#> [1] 6650
-#> [1] 6700
-#> [1] 6750
-#> [1] 6800
-#> [1] 6850
-#> [1] 6900
-#> [1] 6950
-#> [1] 7000
-#> [1] 7050
-#> [1] 7100
-#> [1] 7150
-#> [1] 7200
-#> [1] 7250
-#> [1] 7300
-#> [1] 7350
-#> [1] 7400
-#> [1] 7450
-#> [1] 7500
-#> [1] 7550
-#> [1] 7600
-#> [1] 7650
-#> [1] 7700
-#> [1] 7750
-#> [1] 7800
-#> [1] 7850
-#> [1] 7900
-#> [1] 7950
-#> [1] 8000
-#> [1] 8050
-#> [1] 8100
-#> [1] 8150
-#> [1] 8200
-#> [1] 8250
-#> [1] 8300
-#> [1] 8350
-#> [1] 8400
-#> [1] 8450
-#> [1] 8500
-#> [1] 8550
-#> [1] 8600
-#> [1] 8650
-#> [1] 8700
-#> [1] 8750
-#> [1] 8800
-#> [1] 8850
-#> [1] 8900
-#> [1] 8950
-#> [1] 9000
-#> [1] 9050
-#> [1] 9100
-#> [1] 9150
-#> [1] 9200
-#> [1] 9250
-#> [1] 9300
-#> [1] 9350
-#> [1] 9400
-#> [1] 9450
-#> [1] 9500
-#> [1] 9550
-#> [1] 9600
-#> [1] 9650
-#> [1] 9700
-#> [1] 9750
-#> [1] 9800
-#> [1] 9850
-#> [1] 9900
-#> [1] 9950
-#> [1] 10000
+
+library(furrr)
+#> Loading required package: future
+#> 
+#> Attaching package: 'future'
+#> The following object is masked from 'package:terra':
+#> 
+#>     values
+plan(multicore)
+Kcell <- future_map(seq_len(nrow(pts1)), fun_pti)
+plan(sequential)
 
 ## summarize with dplyr
 cell <- do.call(bind_rows, Kcell)
+
 ss <- cell %>% group_by(cell) %>% summarize(prob = sum(prob))
 
 rsum <- setValues(rast(ext(g), res = 50000, crs = crs(g)), 0)
@@ -307,15 +156,23 @@ rsum[xsum$foreign] <- xsum$prob
 
 plot(rsum)
 psegs(pts0, pts1, add = TRUE)
+ex2 <- ext(3064556.06339375, 3203002.1878131, -925364.448947992, -816064.877037982)
+plot(ex2, add = TRUE)
 ```
 
 <img src="man/figures/README-unnamed-chunk-2-2.png" width="100%" />
 
 ``` r
-
 ## zoom in
-plot(crop(rsum, ext(3064556.06339375, 3203002.1878131, -925364.448947992, -816064.877037982)))
+plot(crop(rsum, ex2))
 psegs(pts0, pts1, add = TRUE)
 ```
 
 <img src="man/figures/README-unnamed-chunk-2-3.png" width="100%" />
+
+## Code of Conduct
+
+Please note that the footprint project is released with a [Contributor
+Code of
+Conduct](https://contributor-covenant.org/version/2/1/CODE_OF_CONDUCT.html).
+By contributing to this project, you agree to abide by its terms.

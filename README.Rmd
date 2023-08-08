@@ -78,21 +78,45 @@ kde <- FALSE
 ## --parallelize the loop
 ## -- (possibly rasterize with terra, can't do kde)
 ## -- probably can rewrite a fair bit anyway
-for (i in seq(nrow(pts1))) {
-  linp <- bpsp(pts0[i,], pts1[i,], g, diam[i]/2)
+# for (i in seq(nrow(pts1))) {
+#   linp <- bpsp(pts0[i,], pts1[i,], g, diam[i]/2)
+#   if (kde) {
+#    pix <- density(linp, sigma = diam[i])
+#   } else {
+#    pix <- pixellate(linp)
+#   }
+#   rd <- rast(pix)
+#   rd[rd < quantile(values(rd)[,1], 0.75)] <- NA_real_
+#   
+#   vals <- values(rd)
+#   Kcell[[i]] <- tibble::tibble(cell = cellFromXY(g, xyFromCell(rd, seq_len(ncell(rd)))[!is.na(vals), ]), 
+#         prob = na.omit(vals))  
+# if (i %% 50 == 0) print(i)
+# }
+
+## this fuction is the old loop above in parallel, which was much harder to do when it was written
+## this document is run from the shell via Rscript -e 'rmarkdown::render("README.Rmd")' &
+## because, note limitations on future::multicore when run in RStudio
+fun_pti <- function(i) {
+   linp <- bpsp(pts0[i,], pts1[i,], g, diam[i]/2)
   if (kde) {
    pix <- density(linp, sigma = diam[i])
   } else {
    pix <- pixellate(linp)
   }
   rd <- rast(pix)
-  rd[rd < quantile(values(rd)[,1], 0.75)] <- NA_real_
+  ## values() clashes with future::values 
+  rd[rd < quantile(terra::values(rd)[,1], 0.75)] <- NA_real_
   
-  vals <- values(rd)
-  Kcell[[i]] <- tibble::tibble(cell = cellFromXY(g, xyFromCell(rd, seq_len(ncell(rd)))[!is.na(vals), ]), 
-        prob = na.omit(vals))  
-if (i %% 50 == 0) print(i)
+  vals <- terra::values(rd)
+  tibble::tibble(cell = cellFromXY(g, xyFromCell(rd, seq_len(ncell(rd)))[!is.na(vals), ]), 
+        prob = na.omit(vals)) 
 }
+
+library(furrr)
+plan(multicore)
+Kcell <- future_map(seq_len(nrow(pts1)), fun_pti)
+plan(sequential)
 
 ## summarize with dplyr
 cell <- do.call(bind_rows, Kcell)
